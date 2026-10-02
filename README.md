@@ -5,9 +5,9 @@ API REST em Spring Boot para o fluxo de aprendizado financeiro do Brainvest. A A
 ## Stack
 
 - Java 21, Spring Boot 3.5 e Maven
-- PostgreSQL 17 com Flyway
-- Docker para PostgreSQL local e, na EC2, PostgreSQL + API + Caddy
-- GitHub Actions faz deploy na EC2 por SSH usando a PEM como Secret criptografada
+- PostgreSQL com Flyway
+- Docker para deploy no Render
+- Neon Postgres para banco gratuito/gerenciado
 
 ## Rodar localmente
 
@@ -36,132 +36,59 @@ O PostgreSQL local fica em `localhost:5433` para nao bater com outro PostgreSQL 
 - `POST /api/v1/learners/{learnerId}/missions/{levelId}/restart`: reinicia a missao ativa apos as vidas chegarem a zero.
 - `DELETE /api/v1/learners/{learnerId}`: remove o perfil convidado e o progresso relacionado.
 
-## Deploy na EC2 com GitHub Actions
+## Deploy gratuito com Render + Neon
 
-O workflow `.github/workflows/deploy-ec2.yml` roda os testes, gera o JAR, conecta na EC2 por SSH, copia o JAR e `deploy/deploy-ec2.sh`, e entao sobe/atualiza:
-
-- PostgreSQL em Docker, sem porta publica
-- API Java em Docker
-- Caddy em Docker para HTTPS automatico
-
-Este caminho usa a PEM da EC2 somente como **GitHub Actions Secret**. Nao precisa configurar AWS CLI, AWS account ID, region, ECR, OIDC role ou access keys para este deploy inicial.
-
-### 1. Confirmar EC2 e acesso SSH
-
-O IP informado foi `3.221.155.116`. Confirme no console da AWS se ele ainda e o IP publico da instancia.
-
-Teste a PEM no seu computador:
-
-```powershell
-ssh -i "$HOME\Downloads\sua-chave.pem" ubuntu@3.221.155.116
-```
-
-O banner do SSH dessa instancia indica Ubuntu (`OpenSSH_9.6p1 Ubuntu-3ubuntu13.19`), entao use `EC2_USER=ubuntu` no GitHub. Em Amazon Linux 2023, o usuario costuma ser `ec2-user`.
-
-Nao coloque a PEM no repositorio, em `.env`, no README, no workflow ou no chat.
-
-### 2. Preparar a EC2
-
-Para Ubuntu 24.04, rode o conteudo de `deploy/ec2-user-data-ubuntu-24.04.sh` como user data ao criar a instancia, ou entre na EC2 e rode com `sudo`. Ele instala Docker e OpenSSL.
-
-Para Amazon Linux 2023, use `deploy/ec2-user-data-amazon-linux-2023.sh`.
-
-O usuario usado pelo GitHub Actions precisa conseguir rodar `sudo` sem senha.
-
-No Security Group da instancia, libere:
-
-- SSH TCP `22`: necessario para o GitHub Actions conectar por SSH. O ideal e restringir ao maximo; abrir para `0.0.0.0/0` funciona para MVP, mas e menos seguro.
-- HTTP TCP `80`: necessario para o Caddy emitir/renovar certificado.
-- HTTPS TCP `443`: necessario para Lovable e testadores acessarem a API.
-
-Nao libere PostgreSQL `5432` ou `5433` para a internet.
-
-Para persistencia real, use um EBS criptografado montado em `/var/lib/brainvest` antes do primeiro deploy. O script guarda os dados do PostgreSQL e a senha gerada nesse caminho.
-
-### 3. Criar DNS para HTTPS
-
-O Lovable roda em HTTPS, entao o navegador bloqueia chamadas para uma API apenas em HTTP. Voce precisa de um dominio ou subdominio, por exemplo:
+Este repositorio esta pronto para deploy no Render como **Docker Web Service**. O Render fornece uma URL HTTPS publica, por exemplo:
 
 ```text
-api.seu-dominio.com
+https://brainvest-api.onrender.com
 ```
 
-Crie um registro DNS `A` apontando esse host para o IP da EC2, de preferencia um Elastic IP. O valor final da API publicada sera:
+O banco fica no Neon Postgres. Nao precisa de AWS, EC2, PEM, SSH, porta 22 ou dominio proprio.
 
-```text
-https://api.seu-dominio.com
-```
+### Variaveis de ambiente no Render
 
-Nao use `http://3.221.155.116` no Lovable para a versao publicada.
-
-### 4. Configurar GitHub Variables e Secret
-
-Abra o repositorio backend no GitHub:
-
-```text
-https://github.com/Meog38/backend
-```
-
-Va em:
-
-```text
-Settings -> Secrets and variables -> Actions
-```
-
-Na aba **Variables**, crie:
+Configure estas variaveis no servico Render:
 
 | Nome | Valor |
 | --- | --- |
-| `EC2_HOST` | `3.221.155.116` ou o Elastic IP confirmado |
-| `EC2_USER` | `ubuntu` para esta instancia Ubuntu; `ec2-user` apenas se trocar para Amazon Linux |
-| `EC2_KNOWN_HOSTS` | Saida completa de `ssh-keyscan -H 3.221.155.116` |
-| `API_DOMAIN` | Dominio da API, exemplo `api.seu-dominio.com`, sem `https://` |
-| `FRONTEND_ORIGIN` | Origem exata do Lovable, exemplo `https://pixel-perfect-snap-5512.lovable.app`, sem caminho extra |
+| `DB_URL` | JDBC URL do Neon, exemplo `jdbc:postgresql://host/neondb?sslmode=require` |
+| `DB_USERNAME` | Usuario do Neon |
+| `DB_PASSWORD` | Senha do Neon |
+| `FRONTEND_ORIGINS` | Origem publica do Lovable, exemplo `https://pixel-perfect-snap-5512.lovable.app` |
 
-Na aba **Secrets**, crie:
+O Render injeta `PORT` automaticamente. A aplicacao ja usa `PORT` quando ele existir e cai para `8082` no desenvolvimento local.
 
-| Nome | Valor |
-| --- | --- |
-| `EC2_SSH_PRIVATE_KEY` | Conteudo completo da PEM, incluindo as linhas `BEGIN` e `END` |
+### Health check
 
-`EC2_KNOWN_HOSTS` e a chave publica do servidor, nao e a PEM. Para gerar:
-
-```powershell
-& "C:\Program Files\Git\usr\bin\ssh-keyscan.exe" -H -t ed25519 3.221.155.116
-```
-
-Se o `ssh-keyscan` padrao do Windows responder `choose_kex: unsupported KEX method sntrup761x25519-sha512@openssh.com`, use o comando acima com o `ssh-keyscan.exe` do Git Bash. Copie para `EC2_KNOWN_HOSTS` somente a linha que comeca com `|1|` e termina com `ssh-ed25519 ...`; nao precisa copiar as linhas de comentario que comecam com `#`.
-
-Se a instancia ou IP mudar, atualize `EC2_HOST` e gere novamente `EC2_KNOWN_HOSTS`.
-
-### 5. Fazer deploy
-
-Depois de configurar as variaveis e o Secret, faca commit e push para `main`. O workflow roda automaticamente:
+Use este path no Render:
 
 ```text
-Actions -> Deploy API to EC2
+/actuator/health
 ```
 
-Ele falha antes do SSH se alguma variavel/secret estiver faltando. No final, verifica:
+Quando o deploy estiver pronto, teste:
 
 ```text
-https://<API_DOMAIN>/actuator/health
+https://<seu-servico>.onrender.com/actuator/health
 ```
 
-### 6. Conectar o Lovable
+Resposta esperada:
 
-Quando o health check publico responder `UP`, abra as configuracoes do projeto Lovable e defina:
+```json
+{"status":"UP"}
+```
+
+### Conectar Lovable
+
+Depois do deploy no Render, configure o frontend para usar:
 
 ```text
-VITE_API_BASE_URL=https://<API_DOMAIN>
+VITE_API_BASE_URL=https://<seu-servico>.onrender.com
 ```
 
-Depois rode um novo build/deploy no Lovable. Para desenvolvimento local do frontend, mantenha `.env.local` com:
-
-```text
-VITE_API_BASE_URL=http://localhost:8082
-```
+Se o Lovable tiver gravado a URL antiga direto no codigo, troque para a URL nova do Render.
 
 ## Limitacoes de seguranca
 
-O `learnerId` atual e um identificador convidado, nao autenticacao. Qualquer pessoa com acesso a API pode criar perfis convidados. Para uma entrega final mais robusta, adicione autenticacao/autorizacao, rate limiting, backups automatizados do banco, secrets gerenciados e, idealmente, troque SSH publico por SSM/OIDC.
+O `learnerId` atual e um identificador convidado, nao autenticacao. Qualquer pessoa com acesso a API pode criar perfis convidados. Para uma entrega final mais robusta, adicione autenticacao/autorizacao, rate limiting, backups automatizados e secrets gerenciados.
