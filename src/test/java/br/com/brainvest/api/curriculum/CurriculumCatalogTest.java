@@ -12,9 +12,10 @@ class CurriculumCatalogTest {
     private final CurriculumCatalog catalog = new CurriculumCatalog();
 
     @Test
-    void exposesFiveLevelsAndTwentyFiveQuestions() {
+    void exposesFiveLevelsAndExpandedQuestionSet() {
         assertThat(catalog.levels()).hasSize(5);
-        assertThat(catalog.levels()).allSatisfy(level -> assertThat(level.questions()).hasSize(5));
+        assertThat(catalog.levels().stream().map(level -> level.questions().size()).toList())
+                .containsExactly(8, 8, 8, 8, 12);
         assertThat(catalog.levels().stream().flatMap(level -> level.questions().stream()).map(CurriculumCatalog.Question::id))
                 .doesNotHaveDuplicates();
     }

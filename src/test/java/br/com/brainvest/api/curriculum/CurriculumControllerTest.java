@@ -25,7 +25,8 @@ class CurriculumControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(1))
                 .andExpect(jsonPath("$.levels.length()").value(5))
-                .andExpect(jsonPath("$.levels[0].questions.length()").value(5))
+                .andExpect(jsonPath("$.levels[0].questions.length()").value(8))
+                .andExpect(jsonPath("$.levels[4].questions.length()").value(12))
                 .andExpect(jsonPath("$.levels[0].questions[0].correctOptionId").doesNotExist())
                 .andExpect(jsonPath("$.levels[0].questions[0].options.length()").value(3));
     }
