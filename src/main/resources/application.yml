@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: brainvest-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/brainvest}
+    username: ${DB_USERNAME:brainvest}
+    password: ${DB_PASSWORD:brainvest-local}
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8082}
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+brainvest:
+  cors:
+    allowed-origins: ${FRONTEND_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}

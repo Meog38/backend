@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: brainvest-postgres
+    environment:
+      POSTGRES_DB: brainvest
+      POSTGRES_USER: brainvest
+      POSTGRES_PASSWORD: brainvest-local
+    ports:
+      - "5433:5432"
+    volumes:
+      - brainvest-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brainvest -d brainvest"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  brainvest-postgres-data:
