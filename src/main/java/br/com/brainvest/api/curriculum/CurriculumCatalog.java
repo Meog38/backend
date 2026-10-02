@@ -32,6 +32,7 @@ public class CurriculumCatalog {
             String description,
             String missionTitle,
             String missionBrief,
+            String missionSummary,
             List<Question> questions) {}
 
     private final List<Level> levels = buildLevels();
@@ -63,7 +64,7 @@ public class CurriculumCatalog {
     public List<LevelView> publicLevels() {
         return levels.stream().map(level -> new LevelView(
                 level.id(), level.title(), level.emoji(), level.tone(), level.description(),
-                level.missionTitle(), level.missionBrief(),
+                level.missionTitle(), level.missionBrief(), level.missionSummary(),
                 level.questions().stream().map(question -> new QuestionView(
                         question.id(), question.context(), question.prompt(), question.concept(),
                         question.options().stream().map(option -> new OptionView(option.id(), option.text())).toList()
@@ -89,8 +90,8 @@ public class CurriculumCatalog {
     }
 
     private static Level level(int id, String title, String emoji, String tone, String description,
-                               String missionTitle, String missionBrief, Question... questions) {
-        return new Level(id, title, emoji, tone, description, missionTitle, missionBrief, List.of(questions));
+                               String missionTitle, String missionBrief, String missionSummary, Question... questions) {
+        return new Level(id, title, emoji, tone, description, missionTitle, missionBrief, missionSummary, List.of(questions));
     }
 
     private static List<Level> buildLevels() {
@@ -99,6 +100,7 @@ public class CurriculumCatalog {
                 "Entenda para onde seu dinheiro vai e tome decisões melhores no dia a dia.",
                 "Missão: o primeiro salário de Lucas",
                 "Lucas tem 19 anos, recebe R$ 2.400 líquidos e gasta R$ 1.700 por mês. Ele quer se organizar sem deixar de aproveitar a vida.",
+                "Lucas fechou o mes entendendo renda, gastos essenciais, desejos e juros do cartao. A ponte com CPA e clara: antes de produto financeiro, vem diagnostico, orcamento e decisao adequada ao objetivo.",
                 q("l1-q1", "Organização do mês", "Qual é o primeiro passo para Lucas descobrir quanto pode guardar?", "Orçamento", "A",
                     "Anotar renda e gastos por um mês", "Investir todo o saldo da conta hoje", "Cancelar todos os momentos de lazer",
                     "Isso. Registrar entradas e saídas mostra o que já está comprometido e quanto cabe nos planos.",
@@ -123,6 +125,7 @@ public class CurriculumCatalog {
                 "Prepare uma base: objetivos, prazo, reserva, inflação e acesso ao dinheiro.",
                 "Missão: a viagem e a reserva de Marina",
                 "Marina está guardando dinheiro para uma viagem daqui a dois meses e também quer montar uma reserva para imprevistos.",
+                "Marina separou dinheiro de curto prazo da reserva e percebeu que liquidez, prazo e inflacao mudam a escolha. Essa e a base para analisar adequacao antes de comparar rentabilidade.",
                 q("l2-q1", "Objetivo e prazo", "Marina separou R$ 300 para uma viagem daqui a dois meses. O que ela deve considerar antes de escolher onde guardar?", "Objetivo e horizonte", "B",
                     "O prazo curto e a data em que vai precisar do dinheiro", "Apenas a maior rentabilidade anunciada", "Somente o nome mais conhecido do produto",
                     "Certo. O prazo do objetivo orienta quanto risco faz sentido e quando o dinheiro precisa estar disponível.",
@@ -147,6 +150,7 @@ public class CurriculumCatalog {
                 "Conheça renda fixa, títulos públicos, CDBs, fundos e renda variável.",
                 "Missão: escolher sem cair no nome bonito",
                 "Depois de organizar a reserva, Pedro compara produtos de investimento. Cada escolha precisa combinar com o funcionamento e o prazo do produto.",
+                "Pedro saiu do nome do produto e passou a olhar emissor, regra de remuneracao, cotas, prazo e risco. E esse olhar que prepara para a linguagem de investimentos da CPA.",
                 q("l3-q1", "Renda fixa", "Ao ouvir que um investimento é de renda fixa, qual interpretação é mais adequada?", "Renda fixa", "C",
                     "As regras de remuneração são definidas no início, mas o resultado pode depender das condições do produto", "O investimento não tem risco e sempre rende o mesmo valor", "O investidor recebe participação nos lucros de uma empresa",
                     "Correto. Renda fixa descreve regras de remuneração; não é sinônimo de retorno garantido ou ausência de risco.",
@@ -171,6 +175,7 @@ public class CurriculumCatalog {
                 "Conecte perfil, risco, retorno, diversificação e horizonte de investimento.",
                 "Missão: o plano de investimento de Bia",
                 "Bia tem objetivos com prazos diferentes e está conhecendo alternativas. Seu desafio é avaliar adequação, não perseguir a maior taxa isoladamente.",
+                "Bia aprendeu que risco, retorno, diversificacao, perfil e horizonte precisam conversar entre si. A boa decisao nao e a mais chamativa: e a que combina com a pessoa e com o prazo.",
                 q("l4-q1", "Risco e retorno", "Uma oferta promete retorno potencial maior, mas pode oscilar bastante. O que Bia deve entender?", "Relação entre risco e retorno", "A",
                     "Maior retorno potencial pode vir acompanhado de maior risco", "O retorno maior elimina a chance de perda", "O risco importa apenas depois do vencimento",
                     "Certo. Potencial de retorno precisa ser analisado junto com os riscos e a capacidade de suportar perdas.",
@@ -195,6 +200,7 @@ public class CurriculumCatalog {
                 "Aplique os conceitos em casos integrados com linguagem mais técnica.",
                 "Missão: você é assessor por cinco minutos",
                 "Rafael tem R$ 10.000 para uma reserva e um objetivo de longo prazo. Ele demonstra baixa tolerância a perdas e pergunta sobre CDBs, fundos e títulos públicos.",
+                "Rafael integrou o caso final: separou reserva e longo prazo, checou liquidez, risco de credito, custos, documentos do fundo e suitability. Essa e a logica central para chegar mais forte ao CPA.",
                 q("l5-q1", "Caso integrado · necessidade de liquidez", "Um CDB oferece taxa atraente, mas tem carência de dois anos. Considerando que parte dos recursos é a reserva de Rafael, qual análise é prioritária?", "Liquidez e adequação", "B",
                     "Verificar se a restrição de resgate é compatível com a finalidade de reserva", "Assumir que a taxa maior torna o produto adequado", "Ignorar a carência se o emissor for conhecido",
                     "Correto. A finalidade dos recursos e a disponibilidade do produto devem ser compatíveis antes de comparar taxas.",

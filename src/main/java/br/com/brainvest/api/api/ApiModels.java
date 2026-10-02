@@ -28,6 +28,10 @@ public final class ApiModels {
             @NotBlank @Email @Size(max = 254) String email,
             @NotBlank @Size(min = 8, max = 100) String password) {}
 
+    public record ChangePasswordRequest(
+            @NotBlank @Size(min = 8, max = 100) String currentPassword,
+            @NotBlank @Size(min = 8, max = 100) String newPassword) {}
+
     public record UpdateProfileRequest(
             @NotBlank @Size(max = 60) String displayName,
             @NotBlank @Size(max = 100) String objective) {}
@@ -54,6 +58,7 @@ public final class ApiModels {
             String description,
             String missionTitle,
             String missionBrief,
+            String missionSummary,
             List<QuestionView> questions) {}
 
     public record CurriculumResponse(int version, List<LevelView> levels) {}

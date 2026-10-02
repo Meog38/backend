@@ -2,11 +2,13 @@ package br.com.brainvest.api.auth;
 
 import br.com.brainvest.api.api.ApiModels.AuthRequest;
 import br.com.brainvest.api.api.ApiModels.AuthResponse;
+import br.com.brainvest.api.api.ApiModels.ChangePasswordRequest;
 import br.com.brainvest.api.api.ApiModels.RegisterRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +42,12 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         auth.logout(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<Void> changePassword(HttpServletRequest request, @Valid @RequestBody ChangePasswordRequest body) {
+        auth.changePassword(request, body);
         return ResponseEntity.noContent().build();
     }
 }

@@ -3,6 +3,7 @@ package br.com.brainvest.api.auth;
 import br.com.brainvest.api.api.ApiException;
 import br.com.brainvest.api.api.ApiModels.AuthRequest;
 import br.com.brainvest.api.api.ApiModels.AuthResponse;
+import br.com.brainvest.api.api.ApiModels.ChangePasswordRequest;
 import br.com.brainvest.api.api.ApiModels.CreateLearnerRequest;
 import br.com.brainvest.api.api.ApiModels.RegisterRequest;
 import br.com.brainvest.api.api.ApiModels.UserResponse;
@@ -113,6 +114,23 @@ public class AuthService {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (authorization == null || !authorization.startsWith("Bearer ")) return;
         jdbc.update("DELETE FROM auth_sessions WHERE token_hash = ?", sha256(authorization.substring("Bearer ".length()).trim()));
+    }
+
+    @Transactional
+    public void changePassword(HttpServletRequest request, ChangePasswordRequest body) {
+        AuthenticatedUser user = requireUser(request);
+        String currentHash = jdbc.query("""
+                SELECT password_hash
+                FROM app_users
+                WHERE id = ?
+                """, (result, rowNumber) -> result.getString("password_hash"), user.id()).stream().findFirst()
+                .orElseThrow(AuthService::unauthorized);
+
+        if (!passwordEncoder.matches(body.currentPassword(), currentHash)) {
+            throw invalidCredentials();
+        }
+        jdbc.update("UPDATE app_users SET password_hash = ? WHERE id = ?",
+                passwordEncoder.encode(body.newPassword()), user.id());
     }
 
     public AuthenticatedUser requireUser(HttpServletRequest request) {
