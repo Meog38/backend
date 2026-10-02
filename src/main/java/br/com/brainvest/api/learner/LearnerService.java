@@ -54,11 +54,16 @@ public class LearnerService {
 
     @Transactional
     public LearnerResponse create(CreateLearnerRequest request) {
+        return createForUser(request, null);
+    }
+
+    @Transactional
+    public LearnerResponse createForUser(CreateLearnerRequest request, UUID userId) {
         UUID learnerId = UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO learners (id, display_name, objective)
-                VALUES (?, ?, ?)
-                """, learnerId, request.displayName().trim(), request.objective().trim());
+                INSERT INTO learners (id, display_name, objective, user_id)
+                VALUES (?, ?, ?, ?)
+                """, learnerId, request.displayName().trim(), request.objective().trim(), userId);
         jdbc.batchUpdate("""
                 INSERT INTO mission_progress (learner_id, level_id)
                 VALUES (?, ?)
@@ -67,6 +72,20 @@ public class LearnerService {
                     statement.setInt(2, level.id());
                 });
         return response(loadLearner(learnerId, false));
+    }
+
+    @Transactional
+    public void attachGuestLearner(UUID learnerId, UUID userId) {
+        Integer existing = jdbc.queryForObject("SELECT count(*) FROM learners WHERE user_id = ?", Integer.class, userId);
+        if (existing != null && existing > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_HAS_PROGRESS", "Esta conta ja possui progresso salvo.");
+        }
+        int changed = jdbc.update("""
+                UPDATE learners
+                SET user_id = ?, updated_at = now(), row_version = row_version + 1
+                WHERE id = ? AND user_id IS NULL
+                """, userId, learnerId);
+        if (changed == 0) throw learnerNotFound();
     }
 
     @Transactional(readOnly = true)
@@ -229,6 +248,17 @@ public class LearnerService {
         return jdbc.query(sql, LEARNER_MAPPER, learnerId).stream()
                 .findFirst()
                 .orElseThrow(LearnerService::learnerNotFound);
+    }
+
+    @Transactional(readOnly = true)
+    public void assertCanAccess(UUID learnerId, UUID userId) {
+        UUID ownerId = jdbc.query("""
+                SELECT user_id FROM learners WHERE id = ?
+                """, (result, rowNumber) -> result.getObject("user_id", UUID.class), learnerId)
+                .stream().findFirst().orElseThrow(LearnerService::learnerNotFound);
+        if (ownerId != null && !ownerId.equals(userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Este progresso pertence a outra conta.");
+        }
     }
 
     private MissionState loadMission(UUID learnerId, int levelId) {

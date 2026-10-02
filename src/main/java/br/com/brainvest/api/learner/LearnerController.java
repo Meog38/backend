@@ -1,5 +1,6 @@
 package br.com.brainvest.api.learner;
 
+import br.com.brainvest.api.auth.AuthService;
 import br.com.brainvest.api.api.ApiModels.CreateLearnerRequest;
 import br.com.brainvest.api.api.ApiModels.LearnerResponse;
 import br.com.brainvest.api.api.ApiModels.ProgressResponse;
@@ -7,6 +8,7 @@ import br.com.brainvest.api.api.ApiModels.RestartMissionResponse;
 import br.com.brainvest.api.api.ApiModels.SubmitAnswerRequest;
 import br.com.brainvest.api.api.ApiModels.UpdateProfileRequest;
 import br.com.brainvest.api.api.ApiModels.AnswerResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
@@ -25,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class LearnerController {
 
     private final LearnerService learnerService;
+    private final AuthService authService;
 
-    public LearnerController(LearnerService learnerService) {
+    public LearnerController(LearnerService learnerService, AuthService authService) {
         this.learnerService = learnerService;
+        this.authService = authService;
     }
 
     @PostMapping
@@ -37,34 +41,42 @@ public class LearnerController {
     }
 
     @DeleteMapping("/{learnerId}")
-    public ResponseEntity<Void> deleteLearner(@PathVariable UUID learnerId) {
+    public ResponseEntity<Void> deleteLearner(@PathVariable UUID learnerId, HttpServletRequest request) {
+        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
         learnerService.deleteLearner(learnerId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{learnerId}/progress")
-    public ProgressResponse getProgress(@PathVariable UUID learnerId) {
+    public ProgressResponse getProgress(@PathVariable UUID learnerId, HttpServletRequest request) {
+        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
         return learnerService.getProgress(learnerId);
     }
 
     @PatchMapping("/{learnerId}/profile")
     public LearnerResponse updateProfile(
             @PathVariable UUID learnerId,
+            HttpServletRequest httpRequest,
             @Valid @RequestBody UpdateProfileRequest request) {
+        authService.authenticate(httpRequest).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
         return learnerService.updateProfile(learnerId, request);
     }
 
     @PostMapping("/{learnerId}/answers")
     public AnswerResponse submitAnswer(
             @PathVariable UUID learnerId,
+            HttpServletRequest httpRequest,
             @Valid @RequestBody SubmitAnswerRequest request) {
+        authService.authenticate(httpRequest).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
         return learnerService.submitAnswer(learnerId, request);
     }
 
     @PostMapping("/{learnerId}/missions/{levelId}/restart")
     public RestartMissionResponse restartMission(
             @PathVariable UUID learnerId,
-            @PathVariable int levelId) {
+            @PathVariable int levelId,
+            HttpServletRequest request) {
+        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
         return learnerService.restartMission(learnerId, levelId);
     }
 }

@@ -3,6 +3,7 @@ package br.com.brainvest.api.api;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +17,16 @@ public final class ApiModels {
     public record CreateLearnerRequest(
             @NotBlank @Size(max = 60) String displayName,
             @NotBlank @Size(max = 100) String objective) {}
+
+    public record AuthRequest(
+            @NotBlank @Email @Size(max = 254) String email,
+            @NotBlank @Size(min = 8, max = 100) String password) {}
+
+    public record RegisterRequest(
+            @NotBlank @Size(max = 60) String displayName,
+            @NotBlank @Size(max = 100) String objective,
+            @NotBlank @Email @Size(max = 254) String email,
+            @NotBlank @Size(min = 8, max = 100) String password) {}
 
     public record UpdateProfileRequest(
             @NotBlank @Size(max = 60) String displayName,
@@ -58,6 +69,17 @@ public final class ApiModels {
             int activeLevelId,
             int currentQuestionIndex,
             Instant createdAt) {}
+
+    public record UserResponse(
+            UUID id,
+            String email,
+            String displayName,
+            UUID learnerId) {}
+
+    public record AuthResponse(
+            String token,
+            UserResponse user,
+            ProgressResponse progress) {}
 
     public record MissionProgressResponse(
             int levelId,
