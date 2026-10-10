@@ -5,7 +5,9 @@ import br.com.brainvest.api.api.ApiModels.AuthRequest;
 import br.com.brainvest.api.api.ApiModels.AuthResponse;
 import br.com.brainvest.api.api.ApiModels.ChangePasswordRequest;
 import br.com.brainvest.api.api.ApiModels.CreateLearnerRequest;
+import br.com.brainvest.api.api.ApiModels.ForgotPasswordRequest;
 import br.com.brainvest.api.api.ApiModels.RegisterRequest;
+import br.com.brainvest.api.api.ApiModels.ResetPasswordRequest;
 import br.com.brainvest.api.api.ApiModels.UserResponse;
 import br.com.brainvest.api.learner.LearnerService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +20,9 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,16 +33,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private static final int SESSION_DAYS = 30;
+    private static final int PASSWORD_RESET_MINUTES = 30;
 
     private final JdbcTemplate jdbc;
     private final LearnerService learners;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     private final SecureRandom secureRandom = new SecureRandom();
+    private final String passwordResetBaseUrl;
+    private final boolean logPasswordResetTokens;
 
-    public AuthService(JdbcTemplate jdbc, LearnerService learners) {
+    public AuthService(
+            JdbcTemplate jdbc,
+            LearnerService learners,
+            @Value("${brainvest.auth.password-reset.base-url:}") String passwordResetBaseUrl,
+            @Value("${brainvest.auth.password-reset.log-tokens:false}") boolean logPasswordResetTokens) {
         this.jdbc = jdbc;
         this.learners = learners;
+        this.passwordResetBaseUrl = passwordResetBaseUrl;
+        this.logPasswordResetTokens = logPasswordResetTokens;
     }
 
     @Transactional
@@ -131,6 +146,40 @@ public class AuthService {
         }
         jdbc.update("UPDATE app_users SET password_hash = ? WHERE id = ?",
                 passwordEncoder.encode(body.newPassword()), user.id());
+        jdbc.update("DELETE FROM auth_sessions WHERE user_id = ?", user.id());
+    }
+
+    @Transactional
+    public void requestPasswordReset(ForgotPasswordRequest request) {
+        String email = normalizeEmail(request.email());
+        jdbc.query("""
+                SELECT id FROM app_users WHERE email = ?
+                """, (result, rowNumber) -> result.getObject("id", UUID.class), email).stream().findFirst()
+                .ifPresent(userId -> {
+                    String token = randomToken();
+                    jdbc.update("""
+                            INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
+                            VALUES (?, ?, ?, ?)
+                            """, UUID.randomUUID(), userId, sha256(token),
+                            OffsetDateTime.now().plusMinutes(PASSWORD_RESET_MINUTES));
+                    logPasswordReset(email, token);
+                });
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String tokenHash = sha256(request.token().trim());
+        UUID userId = jdbc.query("""
+                SELECT user_id
+                FROM password_reset_tokens
+                WHERE token_hash = ? AND used_at IS NULL AND expires_at > now()
+                """, (result, rowNumber) -> result.getObject("user_id", UUID.class), tokenHash)
+                .stream().findFirst().orElseThrow(AuthService::invalidResetToken);
+
+        jdbc.update("UPDATE app_users SET password_hash = ? WHERE id = ?",
+                passwordEncoder.encode(request.newPassword()), userId);
+        jdbc.update("UPDATE password_reset_tokens SET used_at = now() WHERE token_hash = ?", tokenHash);
+        jdbc.update("DELETE FROM auth_sessions WHERE user_id = ?", userId);
     }
 
     public AuthenticatedUser requireUser(HttpServletRequest request) {
@@ -157,14 +206,36 @@ public class AuthService {
     }
 
     private String createSession(UUID userId) {
-        byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = randomToken();
         jdbc.update("""
                 INSERT INTO auth_sessions (id, user_id, token_hash, expires_at)
                 VALUES (?, ?, ?, ?)
                 """, UUID.randomUUID(), userId, sha256(token), OffsetDateTime.now().plusDays(SESSION_DAYS));
         return token;
+    }
+
+    private String randomToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private void logPasswordReset(String email, String token) {
+        if (passwordResetBaseUrl.isBlank()) {
+            if (logPasswordResetTokens) {
+                logger.warn("password_reset_token_created email={} token={}", email, token);
+            } else {
+                logger.warn("password_reset_token_created email={} delivery_not_configured=true", email);
+            }
+            return;
+        }
+        String separator = passwordResetBaseUrl.contains("?") ? "&" : "?";
+        String resetLink = passwordResetBaseUrl + separator + "token=" + token;
+        if (logPasswordResetTokens) {
+            logger.warn("password_reset_link_created email={} link={}", email, resetLink);
+        } else {
+            logger.info("password_reset_link_created email={} delivery_not_configured=true", email);
+        }
     }
 
     private static String normalizeEmail(String email) {
@@ -186,6 +257,10 @@ public class AuthService {
 
     private static ApiException unauthorized() {
         return new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Entre na sua conta para continuar.");
+    }
+
+    private static ApiException invalidResetToken() {
+        return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_RESET_TOKEN", "Link ou codigo de recuperacao invalido ou expirado.");
     }
 
     public record AuthenticatedUser(UUID id, String email, String displayName, UUID learnerId) {}

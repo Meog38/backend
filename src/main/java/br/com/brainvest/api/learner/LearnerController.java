@@ -11,7 +11,9 @@ import br.com.brainvest.api.api.ApiModels.AnswerResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.Duration;
 import java.util.UUID;
+import br.com.brainvest.api.config.RateLimiterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,10 +30,12 @@ public class LearnerController {
 
     private final LearnerService learnerService;
     private final AuthService authService;
+    private final RateLimiterService rateLimiter;
 
-    public LearnerController(LearnerService learnerService, AuthService authService) {
+    public LearnerController(LearnerService learnerService, AuthService authService, RateLimiterService rateLimiter) {
         this.learnerService = learnerService;
         this.authService = authService;
+        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping
@@ -75,6 +79,7 @@ public class LearnerController {
             @Valid @RequestBody SubmitAnswerRequest request) {
         AuthService.AuthenticatedUser user = authService.requireUser(httpRequest);
         learnerService.assertCanAccess(learnerId, user.id());
+        rateLimiter.check("learner-answer", user.id() + ":" + learnerId, 120, Duration.ofMinutes(1));
         return learnerService.submitAnswer(learnerId, request);
     }
 

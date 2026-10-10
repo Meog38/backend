@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import br.com.brainvest.api.api.ApiException;
 import br.com.brainvest.api.auth.AuthService;
+import br.com.brainvest.api.config.RateLimiterService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ class LearnerControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private RateLimiterService rateLimiterService;
 
     @Test
     void rejectsLearnerProgressEndpointsWithoutAuthentication() throws Exception {

@@ -32,6 +32,13 @@ public final class ApiModels {
             @NotBlank @Size(min = 8, max = 100) String currentPassword,
             @NotBlank @Size(min = 8, max = 100) String newPassword) {}
 
+    public record ForgotPasswordRequest(
+            @NotBlank @Email @Size(max = 254) String email) {}
+
+    public record ResetPasswordRequest(
+            @NotBlank @Size(min = 32, max = 200) String token,
+            @NotBlank @Size(min = 8, max = 100) String newPassword) {}
+
     public record UpdateProfileRequest(
             @NotBlank @Size(max = 60) String displayName,
             @NotBlank @Size(max = 100) String objective) {}

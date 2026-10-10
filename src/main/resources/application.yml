@@ -14,6 +14,11 @@ server:
   port: ${PORT:${SERVER_PORT:8082}}
   forward-headers-strategy: framework
 
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    org.springframework.jdbc.core: ${SQL_LOG_LEVEL:INFO}
+
 management:
   endpoints:
     web:
@@ -33,3 +38,7 @@ springdoc:
 brainvest:
   cors:
     allowed-origins: ${FRONTEND_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
+  auth:
+    password-reset:
+      base-url: ${PASSWORD_RESET_BASE_URL:}
+      log-tokens: ${PASSWORD_RESET_LOG_TOKENS:false}
