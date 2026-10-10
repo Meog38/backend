@@ -35,21 +35,26 @@ public class LearnerController {
     }
 
     @PostMapping
-    public ResponseEntity<LearnerResponse> createLearner(@Valid @RequestBody CreateLearnerRequest request) {
-        LearnerResponse learner = learnerService.create(request);
+    public ResponseEntity<LearnerResponse> createLearner(
+            @Valid @RequestBody CreateLearnerRequest request,
+            HttpServletRequest httpRequest) {
+        AuthService.AuthenticatedUser user = authService.requireUser(httpRequest);
+        LearnerResponse learner = learnerService.createForUser(request, user.id());
         return ResponseEntity.created(URI.create("/api/v1/learners/" + learner.id())).body(learner);
     }
 
     @DeleteMapping("/{learnerId}")
     public ResponseEntity<Void> deleteLearner(@PathVariable UUID learnerId, HttpServletRequest request) {
-        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
+        AuthService.AuthenticatedUser user = authService.requireUser(request);
+        learnerService.assertCanAccess(learnerId, user.id());
         learnerService.deleteLearner(learnerId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{learnerId}/progress")
     public ProgressResponse getProgress(@PathVariable UUID learnerId, HttpServletRequest request) {
-        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
+        AuthService.AuthenticatedUser user = authService.requireUser(request);
+        learnerService.assertCanAccess(learnerId, user.id());
         return learnerService.getProgress(learnerId);
     }
 
@@ -58,7 +63,8 @@ public class LearnerController {
             @PathVariable UUID learnerId,
             HttpServletRequest httpRequest,
             @Valid @RequestBody UpdateProfileRequest request) {
-        authService.authenticate(httpRequest).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
+        AuthService.AuthenticatedUser user = authService.requireUser(httpRequest);
+        learnerService.assertCanAccess(learnerId, user.id());
         return learnerService.updateProfile(learnerId, request);
     }
 
@@ -67,7 +73,8 @@ public class LearnerController {
             @PathVariable UUID learnerId,
             HttpServletRequest httpRequest,
             @Valid @RequestBody SubmitAnswerRequest request) {
-        authService.authenticate(httpRequest).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
+        AuthService.AuthenticatedUser user = authService.requireUser(httpRequest);
+        learnerService.assertCanAccess(learnerId, user.id());
         return learnerService.submitAnswer(learnerId, request);
     }
 
@@ -76,7 +83,8 @@ public class LearnerController {
             @PathVariable UUID learnerId,
             @PathVariable int levelId,
             HttpServletRequest request) {
-        authService.authenticate(request).ifPresent(user -> learnerService.assertCanAccess(learnerId, user.id()));
+        AuthService.AuthenticatedUser user = authService.requireUser(request);
+        learnerService.assertCanAccess(learnerId, user.id());
         return learnerService.restartMission(learnerId, levelId);
     }
 }

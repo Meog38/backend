@@ -59,6 +59,12 @@ public class LearnerService {
 
     @Transactional
     public LearnerResponse createForUser(CreateLearnerRequest request, UUID userId) {
+        if (userId != null) {
+            Integer existing = jdbc.queryForObject("SELECT count(*) FROM learners WHERE user_id = ?", Integer.class, userId);
+            if (existing != null && existing > 0) {
+                throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_HAS_PROGRESS", "Esta conta ja possui progresso salvo.");
+            }
+        }
         UUID learnerId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO learners (id, display_name, objective, user_id)
