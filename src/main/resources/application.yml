@@ -34,6 +34,9 @@ logging:
     org.springframework.jdbc.core: ${SQL_LOG_LEVEL:INFO}
 
 management:
+  health:
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:
