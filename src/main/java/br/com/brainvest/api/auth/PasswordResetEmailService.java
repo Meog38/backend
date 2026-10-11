@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,12 @@ public class PasswordResetEmailService {
 
                 O link expira em 30 minutos. Se voce nao pediu essa recuperacao, ignore este e-mail.
                 """.formatted(resetLink));
-        sender.send(message);
-        return true;
+        try {
+            sender.send(message);
+            return true;
+        } catch (MailException exception) {
+            logger.warn("password_reset_email_failed email={} error={}", to, exception.getMessage());
+            return false;
+        }
     }
 }
