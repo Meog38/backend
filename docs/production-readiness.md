@@ -10,6 +10,7 @@
 
 - Password reset tokens expire after 30 minutes and are single-use.
 - Configure `PASSWORD_RESET_BASE_URL` with the frontend recovery URL when a public recovery page/link is available.
+- Configure SMTP with `MAIL_ENABLED=true`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, and `SMTP_PASSWORD`.
 - Keep `PASSWORD_RESET_LOG_TOKENS=false` in production. Use `true` only as a temporary operational fallback while there is no e-mail provider.
 
 ## Monitoring

@@ -11,7 +11,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private static final List<String> LOCAL_DEVELOPMENT_ORIGIN_PATTERNS =
-            List.of("http://localhost:*", "http://127.0.0.1:*");
+            List.of(
+                    "http://localhost:*",
+                    "http://127.0.0.1:*",
+                    "https://do-zero-ao-cpa.vercel.app");
 
     private final List<String> allowedOrigins;
 

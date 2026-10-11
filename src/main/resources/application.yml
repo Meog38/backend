@@ -1,6 +1,17 @@
 spring:
   application:
     name: brainvest-api
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/brainvest}
     username: ${DB_USERNAME:brainvest}
@@ -42,3 +53,6 @@ brainvest:
     password-reset:
       base-url: ${PASSWORD_RESET_BASE_URL:}
       log-tokens: ${PASSWORD_RESET_LOG_TOKENS:false}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:}

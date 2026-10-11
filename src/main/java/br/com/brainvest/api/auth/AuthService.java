@@ -39,6 +39,7 @@ public class AuthService {
 
     private final JdbcTemplate jdbc;
     private final LearnerService learners;
+    private final PasswordResetEmailService passwordResetEmail;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     private final SecureRandom secureRandom = new SecureRandom();
     private final String passwordResetBaseUrl;
@@ -47,10 +48,12 @@ public class AuthService {
     public AuthService(
             JdbcTemplate jdbc,
             LearnerService learners,
+            PasswordResetEmailService passwordResetEmail,
             @Value("${brainvest.auth.password-reset.base-url:}") String passwordResetBaseUrl,
             @Value("${brainvest.auth.password-reset.log-tokens:false}") boolean logPasswordResetTokens) {
         this.jdbc = jdbc;
         this.learners = learners;
+        this.passwordResetEmail = passwordResetEmail;
         this.passwordResetBaseUrl = passwordResetBaseUrl;
         this.logPasswordResetTokens = logPasswordResetTokens;
     }
@@ -162,7 +165,7 @@ public class AuthService {
                             VALUES (?, ?, ?, ?)
                             """, UUID.randomUUID(), userId, sha256(token),
                             OffsetDateTime.now().plusMinutes(PASSWORD_RESET_MINUTES));
-                    logPasswordReset(email, token);
+                    deliverPasswordReset(email, token);
                 });
     }
 
@@ -220,7 +223,7 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private void logPasswordReset(String email, String token) {
+    private void deliverPasswordReset(String email, String token) {
         if (passwordResetBaseUrl.isBlank()) {
             if (logPasswordResetTokens) {
                 logger.warn("password_reset_token_created email={} token={}", email, token);
@@ -231,6 +234,10 @@ public class AuthService {
         }
         String separator = passwordResetBaseUrl.contains("?") ? "&" : "?";
         String resetLink = passwordResetBaseUrl + separator + "token=" + token;
+        if (passwordResetEmail.sendResetLink(email, resetLink)) {
+            logger.info("password_reset_email_sent email={}", email);
+            return;
+        }
         if (logPasswordResetTokens) {
             logger.warn("password_reset_link_created email={} link={}", email, resetLink);
         } else {
