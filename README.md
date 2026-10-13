@@ -1,13 +1,32 @@
-# Brainvest API
+# Do Zero ao CPA - Backend
 
-API REST em Spring Boot para o fluxo de aprendizado financeiro do Brainvest. A API valida respostas, calcula progresso/recompensas e salva perfis convidados em PostgreSQL.
+API REST em Spring Boot para o aplicativo educacional gamificado **Do Zero ao CPA**.
+
+- Repositorio hub: https://github.com/Meog38/do-zero-ao-cpa
+- Frontend: https://github.com/Meog38/do-zero-ao-cpa-frontend
+- App em producao: https://do-zero-ao-cpa.vercel.app/
+- API em producao: https://brainvest-api.onrender.com
+
+## Sobre
+
+O backend valida respostas, calcula recompensas, controla autenticacao, protege o acesso ao progresso do aluno e persiste dados em PostgreSQL.
+
+O projeto tem finalidade educacional. Ele nao presta recomendacao individual de investimentos.
 
 ## Stack
 
-- Java 21, Spring Boot 3.5 e Maven
-- PostgreSQL com Flyway
-- Docker para deploy no Render
-- Neon Postgres para banco gratuito/gerenciado
+- Java 21
+- Spring Boot 3.5.6
+- API REST com JSON
+- Spring JDBC
+- PostgreSQL
+- Flyway
+- Spring Mail
+- Spring Actuator
+- Docker para deploy
+- Render para hospedagem da API
+- Neon para PostgreSQL gerenciado
+- Brevo SMTP para emails transacionais
 
 ## Rodar localmente
 
@@ -18,77 +37,102 @@ docker compose up -d postgres
 mvn spring-boot:run
 ```
 
-API local: `http://localhost:8082`
+API local:
 
-Health check: `http://localhost:8082/actuator/health`
+```text
+http://localhost:8082
+```
 
-Swagger/OpenAPI: `http://localhost:8082/swagger-ui.html`
+Health check:
 
-O PostgreSQL local fica em `localhost:5433` para nao bater com outro PostgreSQL local na porta `5432`. A senha em `compose.yaml` e apenas para desenvolvimento.
+```text
+http://localhost:8082/actuator/health
+```
+
+Swagger/OpenAPI:
+
+```text
+http://localhost:8082/swagger-ui.html
+```
+
+O PostgreSQL local fica em `localhost:5433` para evitar conflito com uma instalacao local na porta `5432`.
 
 ## Endpoints principais
 
-- `GET /api/v1/curriculum`: retorna os cinco niveis e 25 perguntas, sem expor as respostas corretas.
-- `POST /api/v1/learners`: cria um perfil convidado.
-- `GET /api/v1/learners/{learnerId}/progress`: consulta o progresso salvo.
-- `PATCH /api/v1/learners/{learnerId}/profile`: atualiza nome e objetivo.
-- `POST /api/v1/learners/{learnerId}/answers`: envia resposta; o backend calcula acerto, XP e recompensas. O `requestId` em UUID torna retentativas idempotentes.
-- `POST /api/v1/learners/{learnerId}/missions/{levelId}/restart`: reinicia a missao ativa apos as vidas chegarem a zero.
-- `DELETE /api/v1/learners/{learnerId}`: remove o perfil convidado e o progresso relacionado.
+| Metodo | Rota | Descricao |
+| ------ | ---- | --------- |
+| `GET` | `/api/v1/curriculum` | Retorna 5 niveis e 100 questoes, sem expor gabarito. |
+| `POST` | `/api/v1/auth/register` | Cria usuario, learner e sessao. |
+| `POST` | `/api/v1/auth/login` | Autentica usuario e devolve token. |
+| `GET` | `/api/v1/auth/me` | Consulta usuario logado e progresso. |
+| `POST` | `/api/v1/auth/logout` | Encerra a sessao atual. |
+| `PATCH` | `/api/v1/auth/password` | Troca senha de usuario autenticado. |
+| `POST` | `/api/v1/auth/password/forgot` | Solicita email de recuperacao de senha. |
+| `POST` | `/api/v1/auth/password/reset` | Redefine senha com token valido. |
+| `GET` | `/api/v1/learners/{learnerId}/progress` | Consulta progresso do learner autenticado. |
+| `PATCH` | `/api/v1/learners/{learnerId}/profile` | Atualiza nome e objetivo. |
+| `POST` | `/api/v1/learners/{learnerId}/answers` | Valida resposta e calcula XP, vidas, gemas e feedback. |
+| `POST` | `/api/v1/learners/{learnerId}/missions/{levelId}/restart` | Reinicia missao ativa quando as vidas acabam. |
+| `DELETE` | `/api/v1/learners/{learnerId}` | Remove learner e progresso associado. |
 
-## Deploy gratuito com Render + Neon
+## Banco de dados
 
-Este repositorio esta pronto para deploy no Render como **Docker Web Service**. O Render fornece uma URL HTTPS publica, por exemplo:
+As migrations ficam em `src/main/resources/db/migration`.
 
-```text
-https://brainvest-api.onrender.com
-```
+Tabelas principais:
 
-O banco fica no Neon Postgres. Nao precisa de AWS, EC2, PEM, SSH, porta 22 ou dominio proprio.
+- `app_users`: usuarios e hashes de senha.
+- `auth_sessions`: sessoes autenticadas por token hash.
+- `learners`: perfil, objetivo, XP, gemas, vidas e missao ativa.
+- `mission_progress`: progresso por nivel.
+- `rewarded_questions`: controle de XP ja concedido por questao.
+- `answer_requests`: idempotencia de respostas.
+- `password_reset_tokens`: tokens hash para recuperacao de senha.
 
-### Variaveis de ambiente no Render
+## Variaveis de ambiente
 
-Configure estas variaveis no servico Render:
+| Nome | Uso |
+| ---- | --- |
+| `DB_URL` | JDBC URL do PostgreSQL, em producao apontando para Neon. |
+| `DB_USERNAME` | Usuario do banco. |
+| `DB_PASSWORD` | Senha do banco. |
+| `FRONTEND_ORIGINS` | Origens permitidas no CORS, como `https://do-zero-ao-cpa.vercel.app`. |
+| `MAIL_ENABLED` | Habilita envio de email transacional. |
+| `MAIL_FROM` | Remetente dos emails. |
+| `SMTP_HOST` | Host SMTP, por exemplo Brevo. |
+| `SMTP_PORT` | Porta SMTP. |
+| `SMTP_USERNAME` | Usuario SMTP. |
+| `SMTP_PASSWORD` | Chave SMTP. |
+| `PASSWORD_RESET_BASE_URL` | URL base usada no link de reset de senha. |
+| `PASSWORD_RESET_LOG_TOKENS` | Deve ficar `false` em producao. |
 
-| Nome | Valor |
-| --- | --- |
-| `DB_URL` | JDBC URL do Neon, exemplo `jdbc:postgresql://host/neondb?sslmode=require` |
-| `DB_USERNAME` | Usuario do Neon |
-| `DB_PASSWORD` | Senha do Neon |
-| `FRONTEND_ORIGINS` | Origem publica do Lovable, exemplo `https://pixel-perfect-snap-5512.lovable.app` |
+Nunca versione credenciais reais.
 
-O Render injeta `PORT` automaticamente. A aplicacao ja usa `PORT` quando ele existir e cai para `8082` no desenvolvimento local.
+## Deploy
 
-### Health check
+O backend esta preparado para deploy no Render como Docker Web Service.
 
-Use este path no Render:
+Health check recomendado:
 
 ```text
 /actuator/health
 ```
 
-Quando o deploy estiver pronto, teste:
+O banco de producao fica no Neon PostgreSQL. O envio de email de recuperacao usa SMTP configurado por variaveis de ambiente.
 
-```text
-https://<seu-servico>.onrender.com/actuator/health
+## Seguranca
+
+- Senhas armazenadas com BCrypt.
+- Sessoes salvas como hash SHA-256 do token.
+- Endpoints de progresso exigem autenticacao.
+- O backend valida se o learner pertence ao usuario autenticado.
+- Rate limiting em cadastro, login, reset de senha e envio de respostas.
+- CORS configurado para origens conhecidas.
+
+## Testes
+
+```powershell
+mvn test
 ```
 
-Resposta esperada:
-
-```json
-{"status":"UP"}
-```
-
-### Conectar Lovable
-
-Depois do deploy no Render, configure o frontend para usar:
-
-```text
-VITE_API_BASE_URL=https://<seu-servico>.onrender.com
-```
-
-Se o Lovable tiver gravado a URL antiga direto no codigo, troque para a URL nova do Render.
-
-## Limitacoes de seguranca
-
-O `learnerId` atual e um identificador convidado, nao autenticacao. Qualquer pessoa com acesso a API pode criar perfis convidados. Para uma entrega final mais robusta, adicione autenticacao/autorizacao, rate limiting, backups automatizados e secrets gerenciados.
+Os testes atuais cobrem catalogo de curriculo, API de curriculo, autorizacao dos endpoints de learner e rate limiting. Eles ajudam a proteger partes criticas do prototipo, mas nao substituem QA completo ou testes E2E.
